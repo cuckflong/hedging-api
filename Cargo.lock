@@ -512,6 +512,7 @@ dependencies = [
  "dotenv",
  "hyper",
  "rust_decimal",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",

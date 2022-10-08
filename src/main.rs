@@ -36,12 +36,15 @@ async fn main() {
         .expect("error connecting Postgres");
 
     let app = Router::new()
-        .route("/pnl", get(derived::get_pnl))
-        .route("/liq/total", get(derived::get_total_liq))
-        .route("/dot/total", get(raw::get_dot_total))
-        .route("/dot/staked", get(raw::get_dot_staked))
-        .route("/dot/reward", get(raw::get_dot_reward))
-        .route("/dot/history/staked", get(raw::get_dot_staked_history))
+        .route("/pnl/total", get(derived::get_pnl_total))
+        .route("/liquid/total", get(derived::get_liquid_total))
+        .route("/liquid/total/history", get(derived::get_liquid_history))
+        .route("/dot/balance", get(raw::get_dot_balance_total))
+        .route("/dot/balance/history", get(raw::get_dot_balance_history))
+        .route("/dot/staked", get(raw::get_dot_staked_total))
+        .route("/dot/staked/history", get(raw::get_dot_staked_history))
+        .route("/dot/reward", get(raw::get_dot_reward_total))
+        .route("/dot/reward/history", get(raw::get_dot_reward_history))
         .layer(Extension(context::APIState { db: pool }))
         .layer(TraceLayer::new_for_http());
 
