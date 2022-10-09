@@ -36,7 +36,7 @@ async fn main() {
         .expect("error connecting Postgres");
 
     let app = Router::new()
-        .route("/pnl/total", get(derived::get_pnl_total))
+        .route("/pnl/aggregated", get(derived::get_pnl_aggregated))
         .route("/liquid/total", get(derived::get_liquid_total))
         .route("/liquid/total/history", get(derived::get_liquid_history))
         .route("/dot/balance", get(raw::get_dot_balance_total))
