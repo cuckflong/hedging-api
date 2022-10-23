@@ -1,11 +1,14 @@
-use axum::{extract::Extension, Json};
+use axum::{
+    extract::{Extension, Query},
+    Json,
+};
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 use tracing::log::info;
 
-use crate::context;
+use crate::context::{self, HistoryParams};
 
-async fn get_derived_data(db: PgPool, col_name: &str, json_key: &str) -> Json<Value> {
+async fn get_derived_data(db: PgPool, col_name: &str) -> f64 {
     // :)))))))))))))))))))))))))
     let row = sqlx::query(&format!(
         "SELECT {col_name} from hedge_data_derived ORDER BY unix_time DESC LIMIT 1"
@@ -17,12 +20,18 @@ async fn get_derived_data(db: PgPool, col_name: &str, json_key: &str) -> Json<Va
 
     let raw_data: f64 = row.try_get(col_name).unwrap();
 
+    raw_data
+}
+
+async fn get_derived_data_json(db: PgPool, col_name: &str, json_key: &str) -> Json<Value> {
+    let raw_data: f64 = get_derived_data(db, col_name).await;
+
     info!("fetched derived {json_key}: {raw_data}");
 
     Json(json!({ json_key: raw_data }))
 }
 
-async fn get_derived_history(db: PgPool, col_name: &str, json_key: &str) -> Json<Value> {
+async fn get_derived_history(db: PgPool, col_name: &str) -> (Vec<i64>, Vec<f64>) {
     let rows = sqlx::query(&format!(
         "SELECT unix_time, {col_name} from hedge_data_derived"
     ))
@@ -40,11 +49,49 @@ async fn get_derived_history(db: PgPool, col_name: &str, json_key: &str) -> Json
         data_history.push(raw_data);
     }
 
+    (time_history, data_history)
+}
+
+async fn get_derived_history_json(
+    db: PgPool,
+    col_name: &str,
+    json_key: &str,
+    min_diff: Option<f64>,
+    min_offset: Option<f64>,
+) -> Json<Value> {
+    let (time_history, data_history) = get_derived_history(db, col_name).await;
+
     info!("fetched derived {json_key} history");
 
+    let mut time_history_new: Vec<i64> = vec![];
+    let mut data_history_new: Vec<f64> = vec![];
+
+    for (i, _) in time_history.iter().enumerate() {
+        match min_diff {
+            Some(min_diff) => {
+                if i > 0 && (data_history[i] - data_history[i - 1]).abs() < min_diff {
+                    continue;
+                }
+            }
+            None => (),
+        }
+
+        match min_offset {
+            Some(min_offset) => {
+                if data_history[i].abs() < min_offset {
+                    continue;
+                }
+            }
+            None => (),
+        }
+
+        time_history_new.push(time_history[i]);
+        data_history_new.push(data_history[i]);
+    }
+
     Json(json!({
-        "unix_time": &time_history,
-        json_key: &data_history
+        "unix_time": &time_history_new,
+        json_key: &data_history_new
     }))
 }
 
@@ -58,11 +105,11 @@ pub async fn get_pnl_aggregated(ctx: Extension<context::APIState>) -> Json<Value
     let mut aggregated_pnl: f64 = 0.0;
 
     for row in rows.iter() {
-        let total_pnl: f64 = match row.try_get("total_pnl") {
+        let pnl: f64 = match row.try_get("pnl") {
             Ok(num) => num,
             Err(_) => 0.0,
         };
-        aggregated_pnl += total_pnl;
+        aggregated_pnl += pnl;
     }
 
     info!("aggregated pnl (USD): {aggregated_pnl}");
@@ -71,9 +118,60 @@ pub async fn get_pnl_aggregated(ctx: Extension<context::APIState>) -> Json<Value
 
 // get current total liquidation value
 pub async fn get_liquid_total(ctx: Extension<context::APIState>) -> Json<Value> {
-    get_derived_data(ctx.db.clone(), "total_liq_value", "liquid_total").await
+    get_derived_data_json(ctx.db.clone(), "total_liquid_value", "liquid_total").await
 }
 
-pub async fn get_liquid_history(ctx: Extension<context::APIState>) -> Json<Value> {
-    get_derived_history(ctx.db.clone(), "total_liq_value", "liquid_total").await
+pub async fn get_liquid_history(
+    ctx: Extension<context::APIState>,
+    history_params: Query<HistoryParams>,
+) -> Json<Value> {
+    get_derived_history_json(
+        ctx.db.clone(),
+        "total_liquid_value",
+        "liquid_total",
+        history_params.min_diff,
+        history_params.min_offset,
+    )
+    .await
+}
+
+pub async fn get_margin_ratio(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_derived_data_json(ctx.db.clone(), "margin_ratio", "margin_level").await
+}
+
+pub async fn get_staked_ratio(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_derived_data_json(ctx.db.clone(), "staked_ratio", "staked_ratio").await
+}
+
+pub async fn get_swap_total(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_derived_data_json(ctx.db.clone(), "pps_total_swap", "total_swap").await
+}
+
+pub async fn get_cost_total(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_derived_data_json(ctx.db.clone(), "total_cost", "total_cost").await
+}
+
+pub async fn get_net_exposure(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_derived_data_json(ctx.db.clone(), "dot_net_position", "net_exposure").await
+}
+
+pub async fn get_net_exposure_history(
+    ctx: Extension<context::APIState>,
+    history_params: Query<HistoryParams>,
+) -> Json<Value> {
+    get_derived_history_json(
+        ctx.db.clone(),
+        "dot_net_position",
+        "net_exposure",
+        history_params.min_diff,
+        history_params.min_offset,
+    )
+    .await
+}
+
+pub async fn get_pnl_total(ctx: Extension<context::APIState>) -> Json<Value> {
+    let total_cost: f64 = get_derived_data(ctx.db.clone(), "total_cost").await;
+    let total_liquid_value: f64 = get_derived_data(ctx.db.clone(), "total_liquid_value").await;
+
+    Json(json!({ "pnl_total": total_liquid_value - total_cost }))
 }

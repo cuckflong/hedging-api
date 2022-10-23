@@ -1,8 +1,11 @@
 use std::net::SocketAddr;
 
 use axum::{extract::Extension, routing::get, Router};
+use hyper::Method;
 use sqlx::postgres::PgPoolOptions;
 
+use tower_http::cors::Any;
+use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
 use tracing::log::info;
@@ -35,7 +38,12 @@ async fn main() {
         .await
         .expect("error connecting Postgres");
 
+    let cors = CorsLayer::new()
+        .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
+        .allow_origin(Any);
+
     let app = Router::new()
+        .route("/pnl/total", get(derived::get_pnl_total))
         .route("/pnl/aggregated", get(derived::get_pnl_aggregated))
         .route("/liquid/total", get(derived::get_liquid_total))
         .route("/liquid/total/history", get(derived::get_liquid_history))
@@ -43,12 +51,19 @@ async fn main() {
         .route("/dot/balance/history", get(raw::get_dot_balance_history))
         .route("/dot/staked", get(raw::get_dot_staked_total))
         .route("/dot/staked/history", get(raw::get_dot_staked_history))
+        .route("/dot/staked/ratio", get(derived::get_staked_ratio))
         .route("/dot/reward", get(raw::get_dot_reward_total))
         .route("/dot/reward/history", get(raw::get_dot_reward_history))
+        .route("/margin/level", get(derived::get_margin_ratio))
+        .route("/swap/total", get(derived::get_swap_total))
+        .route("/cost/total", get(derived::get_cost_total))
+        .route("/exposure/net", get(derived::get_net_exposure))
+        .route("/exposure/history", get(derived::get_net_exposure_history))
+        .layer(cors)
         .layer(Extension(context::APIState { db: pool }))
         .layer(TraceLayer::new_for_http());
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3333));
 
     info!("listening on {}", addr);
 
