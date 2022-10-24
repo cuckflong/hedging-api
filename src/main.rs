@@ -45,6 +45,7 @@ async fn main() {
     let app = Router::new()
         .route("/pnl/total", get(derived::get_pnl_total))
         .route("/pnl/aggregated", get(derived::get_pnl_aggregated))
+        .route("/pnl/history", get(derived::get_pnl_history))
         .route("/liquid/total", get(derived::get_liquid_total))
         .route("/liquid/total/history", get(derived::get_liquid_history))
         .route("/dot/balance", get(raw::get_dot_balance_total))
@@ -59,6 +60,7 @@ async fn main() {
         .route("/cost/total", get(derived::get_cost_total))
         .route("/exposure/net", get(derived::get_net_exposure))
         .route("/exposure/history", get(derived::get_net_exposure_history))
+        .route("/apr", get(derived::get_pnl_apr))
         .layer(cors)
         .layer(Extension(context::APIState { db: pool }))
         .layer(TraceLayer::new_for_http());

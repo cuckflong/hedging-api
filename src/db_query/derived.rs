@@ -2,6 +2,7 @@ use axum::{
     extract::{Extension, Query},
     Json,
 };
+use chrono::NaiveDateTime;
 use serde_json::{json, Value};
 use sqlx::{PgPool, Row};
 use tracing::log::info;
@@ -95,10 +96,29 @@ async fn get_derived_history_json(
     }))
 }
 
-// get aggregated PnL
-pub async fn get_pnl_aggregated(ctx: Extension<context::APIState>) -> Json<Value> {
+async fn calc_timespan(db: PgPool) -> i64 {
+    let mut row = sqlx::query(&format!("SELECT MIN(unix_time) from hedge_data_derived"))
+        .fetch_one(&db)
+        .await
+        .unwrap();
+
+    let start: i64 = row.try_get("min").unwrap();
+    let start_time = NaiveDateTime::from_timestamp(start, 0);
+
+    row = sqlx::query(&format!("SELECT MAX(unix_time) from hedge_data_derived"))
+        .fetch_one(&db)
+        .await
+        .unwrap();
+
+    let end: i64 = row.try_get("max").unwrap();
+    let end_time = NaiveDateTime::from_timestamp(end, 0);
+
+    (end_time - start_time).num_days()
+}
+
+async fn calc_pnl_aggregated(db: PgPool) -> f64 {
     let rows = sqlx::query("SELECT * from hedge_data_derived")
-        .fetch_all(&ctx.db)
+        .fetch_all(&db)
         .await
         .unwrap();
 
@@ -111,6 +131,13 @@ pub async fn get_pnl_aggregated(ctx: Extension<context::APIState>) -> Json<Value
         };
         aggregated_pnl += pnl;
     }
+
+    aggregated_pnl
+}
+
+// get aggregated PnL
+pub async fn get_pnl_aggregated(ctx: Extension<context::APIState>) -> Json<Value> {
+    let aggregated_pnl = calc_pnl_aggregated(ctx.db.clone()).await;
 
     info!("aggregated pnl (USD): {aggregated_pnl}");
     Json(json!({ "pnl_aggregated": aggregated_pnl }))
@@ -174,4 +201,28 @@ pub async fn get_pnl_total(ctx: Extension<context::APIState>) -> Json<Value> {
     let total_liquid_value: f64 = get_derived_data(ctx.db.clone(), "total_liquid_value").await;
 
     Json(json!({ "pnl_total": total_liquid_value - total_cost }))
+}
+
+pub async fn get_pnl_apr(ctx: Extension<context::APIState>) -> Json<Value> {
+    let total_cost: f64 = get_derived_data(ctx.db.clone(), "total_cost").await;
+    let aggregated_pnl = calc_pnl_aggregated(ctx.db.clone()).await;
+    let days: i64 = calc_timespan(ctx.db.clone()).await;
+
+    let apr: f64 = ((aggregated_pnl / days as f64) * 365.0) / total_cost * 100.0;
+
+    Json(json!({ "apr": apr }))
+}
+
+pub async fn get_pnl_history(
+    ctx: Extension<context::APIState>,
+    history_params: Query<HistoryParams>,
+) -> Json<Value> {
+    get_derived_history_json(
+        ctx.db.clone(),
+        "pnl",
+        "pnl",
+        history_params.min_diff,
+        history_params.min_offset,
+    )
+    .await
 }

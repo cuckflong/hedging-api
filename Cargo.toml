@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 axum = "0.5.16"
+chrono = "0.4.22"
 dotenv = "0.15.0"
 hyper = "0.14.20"
 rust_decimal = "1.26.1"
