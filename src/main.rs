@@ -39,7 +39,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
-        .allow_origin("http://localhost:3000".parse::<HeaderValue>().unwrap())
+        .allow_origin("http://localhost:3000*".parse::<HeaderValue>().unwrap())
         .allow_credentials(true);
 
     let app = Router::new()
