@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
+use axum::http::HeaderValue;
 use axum::{extract::Extension, routing::get, Router};
 use hyper::Method;
 use sqlx::postgres::PgPoolOptions;
 
-use tower_http::cors::Any;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
@@ -39,7 +39,7 @@ async fn main() {
 
     let cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST, Method::OPTIONS])
-        .allow_origin(Any);
+        .allow_origin("http://localhost:3000/".parse::<HeaderValue>().unwrap());
 
     let app = Router::new()
         .route("/pnl/total", get(derived::get_pnl_total))
