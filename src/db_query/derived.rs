@@ -86,7 +86,7 @@ async fn get_derived_history_json(
             None => (),
         }
 
-        if data_history[i].abs() > 100.0 {
+        if i != 0 && (data_history[i] - data_history[i - 1]).abs() > 100.0 {
             continue;
         }
 
