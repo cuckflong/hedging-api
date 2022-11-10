@@ -86,6 +86,10 @@ async fn get_derived_history_json(
             None => (),
         }
 
+        if data_history[i].abs() > 100.0 {
+            continue;
+        }
+
         time_history_new.push(time_history[i]);
         data_history_new.push(data_history[i]);
     }
