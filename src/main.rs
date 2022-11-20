@@ -62,6 +62,7 @@ async fn main() {
         .route("/dot/reward/history", get(raw::get_dot_reward_history))
         .route("/margin/level", get(derived::get_margin_ratio))
         .route("/swap/total", get(derived::get_swap_total))
+        .route("/swap/history", get(derived::get_swap_history))
         .route("/cost/total", get(derived::get_cost_total))
         .route("/exposure/net", get(derived::get_net_exposure))
         .route("/exposure/history", get(derived::get_net_exposure_history))

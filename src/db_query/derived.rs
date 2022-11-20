@@ -230,3 +230,17 @@ pub async fn get_pnl_history(
     )
     .await
 }
+
+pub async fn get_swap_history(
+    ctx: Extension<context::APIState>,
+    history_params: Query<HistoryParams>,
+) -> Json<Value> {
+    get_derived_history_json(
+        ctx.db.clone(),
+        "pps_total_swap",
+        "pps_total_swap",
+        history_params.min_diff,
+        history_params.min_offset,
+    )
+    .await
+}
