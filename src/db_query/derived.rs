@@ -206,7 +206,7 @@ pub async fn get_pnl_total(ctx: Extension<context::APIState>) -> Json<Value> {
     let total_cost: f64 = get_derived_data(ctx.db.clone(), "total_cost").await;
     let total_liquid_value: f64 = get_derived_data(ctx.db.clone(), "total_liquid_value").await;
     let realized_pnl: f64 = raw::get_raw_data(ctx.db.clone(), "pps_realized_pnl").await;
-    let closed_swap: f64 = raw::get_raw_data(ctx.db.clone(), "pps_closed_swao").await;
+    let closed_swap: f64 = raw::get_raw_data(ctx.db.clone(), "pps_closed_swap").await;
 
     Json(json!({
         "pnl_total": total_liquid_value - total_cost + realized_pnl + closed_swap
