@@ -9,6 +9,8 @@ use tracing::log::info;
 
 use crate::context::{self, HistoryParams};
 
+use super::raw;
+
 async fn get_derived_data(db: PgPool, col_name: &str) -> f64 {
     // :)))))))))))))))))))))))))
     let row = sqlx::query(&format!(
@@ -34,7 +36,7 @@ async fn get_derived_data_json(db: PgPool, col_name: &str, json_key: &str) -> Js
 
 async fn get_derived_history(db: PgPool, col_name: &str) -> (Vec<i64>, Vec<f64>) {
     let rows = sqlx::query(&format!(
-        "SELECT unix_time, {col_name} from hedge_data_derived"
+        "SELECT unix_time, {col_name} from hedge_data_derived ORDER BY unix_time"
     ))
     .fetch_all(&db)
     .await
@@ -203,8 +205,12 @@ pub async fn get_net_exposure_history(
 pub async fn get_pnl_total(ctx: Extension<context::APIState>) -> Json<Value> {
     let total_cost: f64 = get_derived_data(ctx.db.clone(), "total_cost").await;
     let total_liquid_value: f64 = get_derived_data(ctx.db.clone(), "total_liquid_value").await;
+    let realized_pnl: f64 = raw::get_raw_data(ctx.db.clone(), "pps_realized_pnl").await;
+    let closed_swap: f64 = raw::get_raw_data(ctx.db.clone(), "pps_closed_swao").await;
 
-    Json(json!({ "pnl_total": total_liquid_value - total_cost }))
+    Json(json!({
+        "pnl_total": total_liquid_value - total_cost + realized_pnl + closed_swap
+    }))
 }
 
 pub async fn get_pnl_apr(ctx: Extension<context::APIState>) -> Json<Value> {

@@ -10,7 +10,7 @@ use tracing::log::info;
 
 use crate::context::{self, HistoryParams};
 
-async fn get_raw_data(db: PgPool, col_name: &str) -> f64 {
+pub async fn get_raw_data(db: PgPool, col_name: &str) -> f64 {
     // :)))))))))))))))))))))))))
     let row = sqlx::query(&format!(
         "SELECT {col_name} from hedge_data_raw ORDER BY unix_time DESC LIMIT 1"
@@ -34,10 +34,12 @@ async fn get_raw_data_json(db: PgPool, col_name: &str, json_key: &str) -> Json<V
 }
 
 async fn get_raw_history(db: PgPool, col_name: &str) -> (Vec<i64>, Vec<f64>) {
-    let rows = sqlx::query(&format!("SELECT unix_time, {col_name} from hedge_data_raw"))
-        .fetch_all(&db)
-        .await
-        .unwrap();
+    let rows = sqlx::query(&format!(
+        "SELECT unix_time, {col_name} from hedge_data_raw ORDER BY unix_time"
+    ))
+    .fetch_all(&db)
+    .await
+    .unwrap();
 
     let mut time_history: Vec<i64> = vec![];
     let mut data_history: Vec<f64> = vec![];
