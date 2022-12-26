@@ -67,6 +67,7 @@ async fn main() {
         .route("/exposure/net", get(derived::get_net_exposure))
         .route("/exposure/history", get(derived::get_net_exposure_history))
         .route("/apr", get(derived::get_pnl_apr))
+        .route("/pps/realized_pnl", get(raw::get_pps_realized_pnl))
         .layer(cors)
         .layer(Extension(context::APIState { db: pool }))
         .layer(TraceLayer::new_for_http());

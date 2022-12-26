@@ -119,6 +119,10 @@ pub async fn get_dot_staked_total(ctx: Extension<context::APIState>) -> Json<Val
     get_raw_data_json(ctx.db.clone(), "dot_staked_balance", "dot_staked_total").await
 }
 
+pub async fn get_pps_realized_pnl(ctx: Extension<context::APIState>) -> Json<Value> {
+    get_raw_data_json(ctx.db.clone(), "pps_realized_pnl", "pps_realized_pnl").await
+}
+
 pub async fn get_dot_staked_history(
     ctx: Extension<context::APIState>,
     history_params: Query<HistoryParams>,
